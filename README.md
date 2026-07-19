@@ -1,14 +1,14 @@
-# QB3rt host (laptop Nav2)
+# QB3rt host Nav2
 
-Laptop-side Nav2 configs and launch files for QB3rt.
+Host-side Nav2 configs and launch files for QB3rt.
 Nav2 runs here; the robot runs the rest onboard.
 
 | where  | what                                                                 | TF it owns                |
 |--------|----------------------------------------------------------------------|---------------------------|
 | robot  | base driver + IMU + ORB-SLAM3 VIO + EKF + RPLIDAR + slam_toolbox     | `odom->base_footprint` (EKF), `map->odom` (slam_toolbox), URDF statics |
-| laptop | Nav2 (planner/controller/behaviors/BT, velocity smoother, collision monitor) + RViz | none                      |
+| host   | Nav2 (planner/controller/behaviors/BT, velocity smoother, collision monitor) + RViz | none                      |
 
-The laptop's final `/cmd_vel` travels over WiFi to the wave_rover bridge on the
+The host's final `/cmd_vel` travels over WiFi to the wave_rover bridge on the
 robot. The bridge's `cmd_timeout: 0.5` watchdog stops the wheels if the link
 drops mid-drive.
 
@@ -17,14 +17,14 @@ drops mid-drive.
 ```
 qb3rt_host/
 ├── qb3rt_env.sh              # ROS domain, RMW, CycloneDDS URI
-├── nav2_laptop.launch.py     # Nav2 + RViz bringup
-├── nav2_laptop.yaml          # Nav2 parameters
+├── nav2_host.launch.py       # Nav2 + RViz bringup
+├── nav2_host.yaml            # Nav2 parameters
 ├── behavior_trees/           # no-spin BT XMLs (skid-steer cannot pivot)
 ├── LICENSE
 └── README.md
 ```
 
-## One-time laptop setup
+## One-time host setup
 
 1. Install Nav2:
 
@@ -32,18 +32,18 @@ qb3rt_host/
    sudo apt install ros-jazzy-navigation2 ros-jazzy-nav2-bringup
    ```
 
-2. Clone or copy this repo to `~/qb3rt_laptop` (or keep it where it is and
+2. Clone or copy this repo to `~/qb3rt_host` (or keep it where it is and
    adjust the paths below). If the robot is mounted at `~/mnt/rb3`:
 
    ```bash
-   bash ~/mnt/rb3/root/QB3rt/laptop/install_on_laptop.sh
+   bash ~/mnt/rb3/root/QB3rt/host/install_on_host.sh
    ```
 
-   That script copies configs + the no-spin behavior trees to `~/qb3rt_laptop`.
+   That script copies configs + the no-spin behavior trees to `~/qb3rt_host`.
    Re-run it after editing the canonical copies on the robot, or edit this
    checkout directly.
 
-3. `~/cyclonedds.xml` must exist on the laptop and peer with the robot's IP
+3. `~/cyclonedds.xml` must exist on the host and peer with the robot's IP
    (192.168.0.100). The robot side is `/opt/cyclonedds.xml` via `rover_env.sh`.
 
 4. Edit `qb3rt_env.sh` if needed so `CYCLONEDDS_URI` points at your local
@@ -51,16 +51,16 @@ qb3rt_host/
 
 ## Clock sync (do not skip)
 
-TF is stamped by the robot and consumed on the laptop. If the clocks disagree
+TF is stamped by the robot and consumed on the host. If the clocks disagree
 by more than the transform tolerances (~0.3-0.5 s), every costmap update and
 controller cycle fails with extrapolation errors. Check:
 
 ```bash
-# on the laptop
+# on the host
 date +%s.%N; ssh/console on robot: date +%s.%N   # or compare `ros2 topic echo /scan --field header.stamp`
 ```
 
-If skewed, sync the RB3 (chrony/NTP against the router or the laptop) before
+If skewed, sync the RB3 (chrony/NTP against the router or the host) before
 launching. Symptoms of skew: "Lookup would require extrapolation into the
 future/past" spam from costmap_2d / RPP.
 
@@ -77,11 +77,11 @@ future/past" spam from costmap_2d / RPP.
    `/odometry/filtered` streaming (EKF up). ORB-SLAM3 needs a little
    translation to initialize VIO; the EKF runs fine before that on IMU+wheel vx.
 
-2. **Laptop**:
+2. **Host**:
 
    ```bash
-   source ~/qb3rt_laptop/qb3rt_env.sh
-   ros2 launch ~/qb3rt_laptop/nav2_laptop.launch.py
+   source ~/qb3rt_host/qb3rt_env.sh
+   ros2 launch ~/qb3rt_host/nav2_host.launch.py
    ```
 
    RViz opens with the Nav2 default view. Check the map and TF arrive, then
@@ -90,7 +90,7 @@ future/past" spam from costmap_2d / RPP.
 ## Sanity checks when something is off
 
 ```bash
-source ~/qb3rt_laptop/qb3rt_env.sh
+source ~/qb3rt_host/qb3rt_env.sh
 ros2 topic hz /scan                # lidar arriving over WiFi?
 ros2 topic hz /odometry/filtered   # EKF arriving?
 ros2 run tf2_tools view_frames     # map->odom->base_footprint->base_link chain complete?

@@ -1,4 +1,4 @@
-"""Remote Nav2 for QB3rt: run the navigation stack on the laptop.
+"""Remote Nav2 for QB3rt: run the navigation stack on the host.
 
 The robot runs sensors + EKF + slam_toolbox onboard and owns map->odom and
 odom->base_footprint (ros2 launch QB3rt full_stack.launch.py enable_nav:=false).
@@ -6,8 +6,8 @@ This launch runs Nav2 navigation-only (nav2_bringup/navigation_launch.py - no
 AMCL/map_server, slam_toolbox on the robot is the localizer) plus RViz.
 
 Launch by path (this file is not an installed package):
-    source ~/qb3rt_laptop/qb3rt_env.sh
-    ros2 launch ~/qb3rt_laptop/nav2_laptop.launch.py
+    source ~/qb3rt_host/qb3rt_env.sh
+    ros2 launch ~/qb3rt_host/nav2_host.launch.py
 
 See README.md in this directory for the full runbook (env, clock sync, order).
 """
@@ -38,7 +38,7 @@ def generate_launch_description():
         [
             DeclareLaunchArgument(
                 "params_file",
-                default_value=os.path.join(_THIS_DIR, "nav2_laptop.yaml"),
+                default_value=os.path.join(_THIS_DIR, "nav2_host.yaml"),
             ),
             DeclareLaunchArgument("use_rviz", default_value="true"),
             DeclareLaunchArgument("rviz_config", default_value=default_rviz),

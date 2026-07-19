@@ -1,6 +1,6 @@
-# Nav2 parameters for the QB3rt skid-steer AGV - REMOTE (laptop) deployment.
+# Nav2 parameters for the QB3rt skid-steer AGV - REMOTE (host) deployment.
 #
-# Runs on the laptop while the robot runs sensors + EKF + slam_toolbox onboard
+# Runs on the host while the robot runs sensors + EKF + slam_toolbox onboard
 # (ros2 launch QB3rt full_stack.launch.py enable_nav:=false). slam_toolbox on
 # the robot supplies map->odom and /map; the EKF supplies odom->base_footprint.
 # Everything here talks to the robot over WiFi/DDS, and the final /cmd_vel is
@@ -8,10 +8,10 @@
 # watchdog stops the wheels if the WiFi link drops).
 #
 # Differences from the onboard config/nav2.yaml:
-#   - Behavior-tree XMLs are referenced by ABSOLUTE laptop path (the QB3rt
-#     package is not installed on the laptop, so $(find-pkg-share QB3rt) would
-#     not resolve). install_on_laptop.sh copies them to ~/qb3rt_laptop.
-#   - Planner is SmacPlannerHybrid with a minimum turning radius: the laptop
+#   - Behavior-tree XMLs are referenced by ABSOLUTE host path (the QB3rt
+#     package is not installed on the host, so $(find-pkg-share QB3rt) would
+#     not resolve). install_on_host.sh copies them to ~/qb3rt_host.
+#   - Planner is SmacPlannerHybrid with a minimum turning radius: the host
 #     has the CPU for it, and it produces kinematically feasible paths for a
 #     skid-steer that CANNOT pivot in place (NavFn corners demanded pivots).
 #   - transform_tolerance raised throughout: TF arrives over WiFi.
@@ -38,8 +38,8 @@ bt_navigator:
     navigate_through_poses:
       plugin: "nav2_bt_navigator::NavigateThroughPosesNavigator"
     # Custom recovery trees WITHOUT the in-place Spin behavior (robot can't pivot).
-    default_nav_to_pose_bt_xml: "/home/brian/qb3rt_laptop/behavior_trees/navigate_to_pose_no_spin.xml"
-    default_nav_through_poses_bt_xml: "/home/brian/qb3rt_laptop/behavior_trees/navigate_through_poses_no_spin.xml"
+    default_nav_to_pose_bt_xml: "/home/brian/qb3rt_host/behavior_trees/navigate_to_pose_no_spin.xml"
+    default_nav_through_poses_bt_xml: "/home/brian/qb3rt_host/behavior_trees/navigate_through_poses_no_spin.xml"
     error_code_names:
       - compute_path_error_code
       - follow_path_error_code
