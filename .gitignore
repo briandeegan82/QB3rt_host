@@ -1,0 +1,38 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# ROS / colcon
+build/
+install/
+log/
+.ros/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local / machine-specific
+*.local
+.env
+.env.*
+
+# Logs and bags
+*.log
+*.bag
+*.db3
+*.mcap
