@@ -120,16 +120,50 @@ the old peer list.
 
 TF is stamped by the robot and consumed on the host. If the clocks disagree
 by more than the transform tolerances (~0.3-0.5 s), every costmap update and
-controller cycle fails with extrapolation errors. Check:
+controller cycle fails. Symptoms of skew:
+
+- "Lookup would require extrapolation into the future/past" or "Transform
+  data too old" spam from costmap_2d / RPP / tf_help.
+- collision_monitor: "Latest source and current collision monitor node
+  timestamps differ on N seconds. Ignoring the source." — the N is the skew.
+
+The RB3 has **no battery-backed RTC**: every boot it resumes the clock from
+its last shutdown, so it wakes up hours-to-days behind (seen 10 days off on
+2026-07-30). NTP sync against the host is therefore mandatory, and is set up
+as follows (already done on both sides; recorded here for rebuilds):
+
+- **Host** — chrony serves the AP subnet, even with no upstream internet,
+  via `/etc/chrony/conf.d/qb3rt-serve.conf`:
+
+  ```
+  allow 192.168.0.0/24
+  local stratum 10
+  ```
+
+  (`local stratum 10` is required: without it chrony refuses to serve time
+  when it can't reach its own upstream servers, which is the normal state
+  when the host is on the rover AP.)
+
+- **Robot** — `systemd-timesyncd` points at the host: `NTP=192.168.0.103`
+  under `[Time]` in `/etc/systemd/timesyncd.conf`. It steps the clock at
+  boot as soon as the host is reachable.
+
+Before launching, verify on the robot — offset should be milliseconds:
 
 ```bash
-# on the host
-date +%s.%N; ssh/console on robot: date +%s.%N   # or compare `ros2 topic echo /scan --field header.stamp`
+timedatectl timesync-status | grep Offset
 ```
 
-If skewed, sync the RB3 (chrony/NTP against the router or the host) before
-launching. Symptoms of skew: "Lookup would require extrapolation into the
-future/past" spam from costmap_2d / RPP.
+If the robot booted while the host was down, the first sync lands whenever
+the host appears; check the offset again before launching the stack. For a
+one-shot manual fix (~0.5 s accuracy — borderline, prefer NTP):
+
+```bash
+ssh root@192.168.0.100 "date -s @$(date +%s.%N)"
+```
+
+After correcting a large skew, restart the ROS stack on **both** machines —
+TF buffers and slam_toolbox/EKF state from before the jump are garbage.
 
 ## Run order
 
@@ -168,7 +202,13 @@ ros2 topic echo /cmd_vel --once    # controller output reaching DDS?
   `~/cyclonedds.xml`, **not** `/opt/cyclonedds.xml` — that path only exists on
   the robot) / robot's IP missing from `<Peers>` (see
   [CycloneDDS setup](#cyclonedds-setup)) / robot not up.
-- Topics but TF errors -> clock skew (above).
+- Config and network check out but topics still missing -> stale `ros2` CLI
+  daemon. `ros2 topic list` answers from a background daemon that caches the
+  graph from when *it* started; if that predates the robot coming up (or a
+  config change), it serves the old empty view forever. `ros2 daemon stop`
+  and re-run, or use `--no-daemon` (bit us 2026-07-30).
+- Topics but TF errors / collision_monitor ignoring sources -> clock skew
+  (above).
 - Goal accepted but robot doesn't move -> is the bridge running with
   `enable_base_driver:=true` (full_stack default)? `ros2 topic hz /cmd_vel` on
   the robot side.
