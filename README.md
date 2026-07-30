@@ -43,11 +43,78 @@ qb3rt_host/
    Re-run it after editing the canonical copies on the robot, or edit this
    checkout directly.
 
-3. `~/cyclonedds.xml` must exist on the host and peer with the robot's IP
-   (192.168.0.100). The robot side is `/opt/cyclonedds.xml` via `rover_env.sh`.
+3. Create `~/cyclonedds.xml` on the host — see
+   [CycloneDDS setup](#cyclonedds-setup) below. The robot side is
+   `/opt/cyclonedds.xml` via `rover_env.sh`.
 
 4. Edit `qb3rt_env.sh` if needed so `CYCLONEDDS_URI` points at your local
    CycloneDDS XML.
+
+## CycloneDDS setup
+
+Discovery runs over **unicast only** (multicast is unreliable on the rover's
+WiFi AP), so the host and robot must each list the other as an explicit peer.
+A robot that isn't in `<Peers>` is never probed and its topics silently never
+appear — no error anywhere. `ros2 topic list` showing only
+`/parameter_events` + `/rosout` while the robot pings fine is the signature
+of a missing/wrong peer entry.
+
+Create `~/cyclonedds.xml` (the path `CYCLONEDDS_URI` in `qb3rt_env.sh`
+points at):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain Id="42">
+    <General>
+      <Interfaces>
+        <!-- host link on the rover AP (192.168.0.0/24) -->
+        <NetworkInterface name="wlp4s0" priority="default" multicast="default"/>
+      </Interfaces>
+      <AllowMulticast>false</AllowMulticast>
+    </General>
+    <Discovery>
+      <ParticipantIndex>auto</ParticipantIndex>
+      <!-- With multicast off, unicast discovery only probes participant
+           indexes 0..MaxAutoParticipantIndex (default 9) per peer address.
+           Nav2 alone exceeds that; without this, host-local nodes (and CLI
+           tools) randomly fail to discover each other. -->
+      <MaxAutoParticipantIndex>120</MaxAutoParticipantIndex>
+      <Peers>
+        <!-- localhost: required for host-local node-to-node discovery
+             (multicast is off) - without it the Nav2 servers and RViz running
+             here never discover each other, only the robot. -->
+        <Peer address="localhost"/>
+        <!-- the robot -->
+        <Peer address="192.168.0.100"/>
+      </Peers>
+    </Discovery>
+    <Internal>
+      <!-- Headroom for large samples from the robot (/map, costmaps). The
+           kernel caps this at net.core.rmem_max (Ubuntu default ~208 kB):
+           raise it with
+             sudo sysctl -w net.core.rmem_max=33554432
+           and persist in /etc/sysctl.d/ to actually get the full 16 MB. -->
+      <SocketReceiveBufferSize min="16MB"/>
+      <SocketSendBufferSize min="2MB"/>
+    </Internal>
+  </Domain>
+</CycloneDDS>
+```
+
+Adjust for your machine:
+
+- `NetworkInterface name` — your interface on the 192.168.0.0/24 network
+  (`ip -4 addr` to find it).
+- `Peer address` — the robot's current IP. If the robot gets its address
+  from DHCP and moves, discovery breaks exactly as described above; give it
+  a static lease on the AP, or update this entry when it moves.
+- `Domain Id` must match `ROS_DOMAIN_ID` (42 in `qb3rt_env.sh`) and the
+  robot's config.
+
+The config is read once at node startup — after editing it, restart any
+running nodes (RViz, Nav2, and the CLI daemon if you use one) or they keep
+the old peer list.
 
 ## Clock sync (do not skip)
 
@@ -99,7 +166,8 @@ ros2 topic echo /cmd_vel --once    # controller output reaching DDS?
 
 - No topics at all -> env not sourced / wrong `CYCLONEDDS_URI` (must be
   `~/cyclonedds.xml`, **not** `/opt/cyclonedds.xml` — that path only exists on
-  the robot) / robot not up.
+  the robot) / robot's IP missing from `<Peers>` (see
+  [CycloneDDS setup](#cyclonedds-setup)) / robot not up.
 - Topics but TF errors -> clock skew (above).
 - Goal accepted but robot doesn't move -> is the bridge running with
   `enable_base_driver:=true` (full_stack default)? `ros2 topic hz /cmd_vel` on
