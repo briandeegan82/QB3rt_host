@@ -98,8 +98,8 @@ qb3rt_host/
      differs
 
 4. Create `~/cyclonedds.xml` — see [CycloneDDS setup](#cyclonedds-setup)
-   below. On the robot the peer config is `/opt/cyclonedds.xml` via
-   `rover_env.sh`.
+   below. On the robot (Ubuntu 24.04) the peer config is
+   `/etc/qb3rt/cyclonedds.xml` via `/etc/profile.d/qb3rt-ros-env.sh`.
 
 5. If you cloned somewhere other than `/home/brian/qb3rt_host`, update the
    absolute behavior-tree paths in [`nav2_host.yaml`](nav2_host.yaml)
@@ -216,7 +216,7 @@ the host appears; check the offset again before launching the stack. For a
 one-shot manual fix (~0.5 s accuracy — borderline, prefer NTP):
 
 ```bash
-ssh root@192.168.0.100 "date -s @$(date +%s.%N)"
+ssh ubuntu@192.168.0.100 "sudo date -s @$(date +%s.%N)"
 ```
 
 After correcting a large skew, restart the ROS stack on **both** machines —
@@ -286,7 +286,7 @@ ros2 topic echo /cmd_vel --once    # controller output reaching DDS?
 ```
 
 - No topics at all → env not sourced / wrong `CYCLONEDDS_URI` (must be your
-  host XML, **not** `/opt/cyclonedds.xml` — that path only exists on the
+  host XML, **not** `/etc/qb3rt/cyclonedds.xml` — that path only exists on the
   robot) / robot's IP missing from `<Peers>` (see
   [CycloneDDS setup](#cyclonedds-setup)) / robot not up.
 - Config and network check out but topics still missing → stale `ros2` CLI
